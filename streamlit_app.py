@@ -125,7 +125,7 @@ def main():
                     show_mesh_analysis(mesh, analysis_results, mesh_opacity)
                 
                 with tab3:
-                    show_download_results(analysis_results)
+                    show_download_results(analysis_results, uploaded_file.name)
                 
             except Exception as e:
                 st.error(f"Error processing mesh: {str(e)}")
@@ -590,7 +590,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
     
     return fig
 
-def show_download_results(results):
+def show_download_results(results, original_filename="stomata"):
     """Display download options for analysis results"""
     st.header("� Download Analysis Results")
     
@@ -613,7 +613,7 @@ def show_download_results(results):
         if st.button("Download Cross-Section PNGs"):
             if 'section_points_gc1' in results and 'section_points_gc2' in results:
                 with st.spinner("Generating PNG images..."):
-                    zip_data = create_cross_section_pngs_package(results, "stomata")
+                    zip_data = create_cross_section_pngs_package(results, original_filename)
                     st.download_button(
                         label="Click to Download ZIP",
                         data=zip_data,
@@ -711,7 +711,7 @@ def create_cross_section_pngs_package(results, original_filename):
     results : dict
         Analysis results containing section_points_gc1 and section_points_gc2
     original_filename : str
-        Original filename for naming convention
+        Original filename for naming convention (e.g., "stomateID_timepoint.obj")
         
     Returns:
     --------
@@ -719,6 +719,21 @@ def create_cross_section_pngs_package(results, original_filename):
         ZIP file data as bytes
     """
     zip_buffer = io.BytesIO()
+    
+    # Extract base name without extension for better naming
+    base_name = os.path.splitext(original_filename)[0]
+    
+    # Try to parse stomata ID and timepoint from filename
+    # Common patterns: "stomateID_timepoint" or "ID_timepoint_other" 
+    name_parts = base_name.replace('-', '_').split('_')
+    
+    if len(name_parts) >= 2:
+        stomata_id = name_parts[0]
+        timepoint = name_parts[1]
+        name_prefix = f"{stomata_id}_{timepoint}"
+    else:
+        # Fallback to original base name if pattern doesn't match
+        name_prefix = base_name
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         
@@ -729,10 +744,8 @@ def create_cross_section_pngs_package(results, original_filename):
                     section_name = f"GC1 - Section {i:02d}"
                     png_data = create_cross_section_png(section, section_name)
                     if png_data:
-                        zip_file.writestr(
-                            f"{original_filename}_gc1_section_{i:02d}.png", 
-                            png_data
-                        )
+                        filename = f"{name_prefix}_GC1_section_{i:02d}.png"
+                        zip_file.writestr(filename, png_data)
         
         # Process GC2 cross-sections
         if 'section_points_gc2' in results:
@@ -741,10 +754,8 @@ def create_cross_section_pngs_package(results, original_filename):
                     section_name = f"GC2 - Section {i:02d}"
                     png_data = create_cross_section_png(section, section_name)
                     if png_data:
-                        zip_file.writestr(
-                            f"{original_filename}_gc2_section_{i:02d}.png", 
-                            png_data
-                        )
+                        filename = f"{name_prefix}_GC2_section_{i:02d}.png"
+                        zip_file.writestr(filename, png_data)
         
         # Add a README file
         readme_content = f"""Cross-Section PNG Images for {original_filename}
@@ -752,9 +763,14 @@ def create_cross_section_pngs_package(results, original_filename):
 
 This package contains 2D PNG images of all extracted cross-sections.
 
-Files:
-- {original_filename}_gc1_section_XX.png: Cross-sections from Guard Cell 1
-- {original_filename}_gc2_section_XX.png: Cross-sections from Guard Cell 2
+File Naming Convention:
+- {name_prefix}_GC1_section_XX.png: Cross-sections from Guard Cell 1
+- {name_prefix}_GC2_section_XX.png: Cross-sections from Guard Cell 2
+
+Where:
+- Stomata ID and timepoint are extracted from the original filename
+- GC1/GC2 indicates the guard cell (Guard Cell 1 or Guard Cell 2)  
+- XX is the section number (00, 01, 02, etc.)
 
 Each image shows the cross-section outline as a black line on a white background.
 Images are generated at 150 DPI and sized at 4x4 inches for high quality.
