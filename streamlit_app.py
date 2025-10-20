@@ -357,7 +357,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col2:
         st.subheader("Orientation")
         flip_180 = st.checkbox("Flip stomata 180°", value=False, 
-                              help="Rotates around Z-axis by negating X and Y coordinates")
+                              help="Rotates around Y-axis by negating X and Z coordinates (like flipping a donut over)")
         opacity = st.slider("Mesh opacity", 0.1, 1.0, 0.65, 0.05)
         
     with col3:
@@ -402,10 +402,10 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
     y_coords = mesh.vertices[:, 1] 
     z_coords = mesh.vertices[:, 2]
     
-    # Apply 180-degree flip if requested (rotate around Z-axis)
+    # Apply 180-degree flip if requested (rotate around Y-axis)
     if flip_180:
         x_coords = -x_coords
-        y_coords = -y_coords
+        z_coords = -z_coords
     
     traces.append(go.Mesh3d(
         x=x_coords,
@@ -428,7 +428,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
         
         if flip_180:
             wall_x = -wall_x
-            wall_y = -wall_y
+            wall_z = -wall_z
             
         traces.append(go.Scatter3d(
             x=wall_x,
@@ -448,8 +448,8 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
         bottom_x, bottom_y, bottom_z = centre_bottom[0], centre_bottom[1], centre_bottom[2]
         
         if flip_180:
-            top_x, top_y = -top_x, -top_y
-            bottom_x, bottom_y = -bottom_x, -bottom_y
+            top_x, top_z = -top_x, -top_z
+            bottom_x, bottom_z = -bottom_x, -bottom_z
         
         traces.append(go.Scatter3d(
             x=[top_x],
@@ -478,7 +478,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
         
         if flip_180:
             spline_x = -spline_x
-            spline_y = -spline_y
+            spline_z = -spline_z
             
         traces.append(go.Scatter3d(
             x=spline_x,
@@ -503,8 +503,8 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
         bottom_circle_z = bottom_circle[:, 2]
         
         if flip_180:
-            top_circle_x, top_circle_y = -top_circle_x, -top_circle_y
-            bottom_circle_x, bottom_circle_y = -bottom_circle_x, -bottom_circle_y
+            top_circle_x, top_circle_z = -top_circle_x, -top_circle_z
+            bottom_circle_x, bottom_circle_z = -bottom_circle_x, -bottom_circle_z
             
         traces.append(go.Scatter3d(
             x=top_circle_x,
@@ -535,7 +535,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                 
                 if flip_180:
                     section_x = -section_x
-                    section_y = -section_y
+                    section_z = -section_z
                 
                 traces.append(go.Scatter3d(
                     x=section_x,
@@ -557,7 +557,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                 
                 if flip_180:
                     section_x = -section_x
-                    section_y = -section_y
+                    section_z = -section_z
                 
                 traces.append(go.Scatter3d(
                     x=section_x,
