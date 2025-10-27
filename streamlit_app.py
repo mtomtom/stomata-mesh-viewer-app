@@ -182,8 +182,38 @@ def analyze_mesh_detailed(mesh, num_sections=20):
     
     # Split mesh into guard cells
     parts = mesh.split(only_watertight=False)
+    results['num_parts_total'] = len(parts)
     if len(parts) < 2:
         raise ValueError("Mesh must contain at least two connected components (guard cells)")
+
+    # If there are more than two connected components (tiny artefacts), keep only the largest two
+    # and record a warning flag so the UI can show a message to the user.
+    if len(parts) > 2:
+        # Compute volumes (fall back to vertex count if volume is zero/invalid)
+        parts_info = []
+        for idx, p in enumerate(parts):
+            try:
+                vol = float(p.volume)
+            except Exception:
+                vol = 0.0
+            parts_info.append((idx, vol, len(p.vertices)))
+
+        # Sort by volume (descending), then vertex count
+        parts_info.sort(key=lambda x: (x[1], x[2]), reverse=True)
+
+        # Keep indices of the two largest parts
+        keep_idxs = {parts_info[0][0], parts_info[1][0]}
+        removed = [info for info in parts_info[2:]]
+
+        # Build new parts list containing only the two largest
+        kept_parts = [parts[i] for i in sorted(keep_idxs)]
+        parts = kept_parts
+
+        results['extra_parts_removed'] = True
+        results['removed_parts_info'] = [{'index': r[0], 'volume': r[1], 'n_vertices': r[2]} for r in removed]
+    else:
+        results['extra_parts_removed'] = False
+        results['removed_parts_info'] = []
     
     # Ensure deterministic left/right ordering: GC1 = left (smaller X centroid), GC2 = right
     p0_cent = parts[0].vertices.mean(axis=0)
@@ -340,6 +370,15 @@ def show_overview(mesh, results):
                 st.warning("Guard-cell order was swapped on load: GC1 is left, GC2 is right (file order differed)")
             else:
                 st.success("Guard-cell order preserved from file (GC1 = left, GC2 = right)")
+        
+        # Warn if extra small parts were removed when splitting the mesh
+        if results.get('extra_parts_removed', False):
+            removed = results.get('removed_parts_info', [])
+            if removed:
+                details = ", ".join([f"idx={r['index']} (vol={r['volume']:.4g}, n={r['n_vertices']})" for r in removed])
+            else:
+                details = 'small artefact components removed'
+            st.warning(f"Mesh contained >2 components; kept the two largest. Removed: {details}")
     
     # Dimensional information
     if 'wall_distance' in results:
