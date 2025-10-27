@@ -573,8 +573,8 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
 
     # Show tip/mid cross-sections
     if show_tip_midsection:
-        tip = results['gc1_section_points'][0]
-        mid = results['gc1_section_points'][len(results['gc1_section_points']) // 2]
+        tip = results['section_points_gc1'][0]
+        mid = results['section_points_gc1'][len(results['section_points_gc1']) // 2]
         if tip is not None and len(tip) > 0:
             tip_x = tip[:, 0]
             tip_y = tip[:, 1]
