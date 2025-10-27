@@ -348,11 +348,12 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     
     with col1:
         st.subheader("Visualization Controls")
-        show_wall_vertices = st.checkbox("Show wall vertices", value=True)
-        show_centreline = st.checkbox("Show centreline spline", value=True)
+        show_wall_vertices = st.checkbox("Show wall vertices", value=False)
+        show_centreline = st.checkbox("Show centreline spline", value=False)
         show_circles = st.checkbox("Show top/bottom circles", value=False)
-        show_cross_sections = st.checkbox("Show cross sections", value=False)
+        show_cross_sections = st.checkbox("Show cross sections", value=True)
         show_wall_centres = st.checkbox("Show wall centres", value=False)
+        show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
     
     with col2:
         st.subheader("Orientation")
@@ -364,7 +365,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         st.subheader("Export Options")
         
         # Generate HTML data immediately for download
-        fig_for_download = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres)
+        fig_for_download = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres, show_tip_midsection)
         html_data = fig_for_download.to_html(include_plotlyjs=True)
         
         st.download_button(
@@ -390,7 +391,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False):
+def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -569,6 +570,43 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                     legendgroup='gc2_sections',
                     showlegend=(i == 0)
                 ))
+
+    # Show tip/mid cross-sections
+    if show_tip_midsection:
+        tip = results['gc1_section_points'][0]
+        mid = results['gc1_section_points'][len(results['gc1_section_points']) // 2]
+        if tip is not None and len(tip) > 0:
+            tip_x = tip[:, 0]
+            tip_y = tip[:, 1]
+            tip_z = tip[:, 2]
+            if flip_180:
+                tip_x = -tip_x
+                tip_z = -tip_z
+            traces.append(go.Scatter3d(
+                x=tip_x,
+                y=tip_y,
+                z=tip_z,
+                mode='lines',
+                line=dict(width=4, color='yellow'),
+                name='Tip Cross-Section'
+            ))
+
+        if mid is not None and len(mid) > 0:
+            mid_x = mid[:, 0]
+            mid_y = mid[:, 1]
+            mid_z = mid[:, 2]
+            if flip_180:
+                mid_x = -mid_x
+                mid_z = -mid_z
+            traces.append(go.Scatter3d(
+                x=mid_x,
+                y=mid_y,
+                z=mid_z,
+                mode='lines',
+                line=dict(width=4, color='magenta'),
+                name='Mid Cross-Section'
+            ))
+        
     
     # Create figure
     fig = go.Figure(data=traces)
