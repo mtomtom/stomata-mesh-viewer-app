@@ -571,10 +571,45 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                     showlegend=(i == 0)
                 ))
 
-    # Show tip/mid cross-sections
+    # Show tip/mid cross-sections (choose tip/mid deterministically by centroid proximity)
     if show_tip_midsection:
-        tip = results['section_points_gc1'][0]
-        mid = results['section_points_gc1'][len(results['section_points_gc1']) // 2]
+        tip = None
+        mid = None
+        spoints = results.get('section_points_gc1', [])
+        if len(spoints) > 0:
+            # compute centroids for each extracted section (use NaN for missing)
+            centroids = []
+            for s in spoints:
+                if s is None or len(s) == 0:
+                    centroids.append(np.array([np.nan, np.nan, np.nan]))
+                else:
+                    centroids.append(np.mean(s, axis=0))
+            centroids = np.array(centroids)
+
+            # tip: nearest to top circle centre if available, otherwise first section
+            if 'circle_top_centre' in results and not np.all(np.isnan(centroids)):
+                top_anchor = results['circle_top_centre']
+                # use nanargmin to ignore empty sections
+                try:
+                    tip_idx = int(np.nanargmin(np.linalg.norm(centroids - top_anchor, axis=1)))
+                except Exception:
+                    tip_idx = 0
+            else:
+                tip_idx = 0
+
+            # mid: nearest to midpoint between top and bottom circle centres if available
+            if ('circle_top_centre' in results and 'circle_bottom_centre' in results
+                    and not np.all(np.isnan(centroids))):
+                mid_anchor = 0.5 * (results['circle_top_centre'] + results['circle_bottom_centre'])
+                try:
+                    mid_idx = int(np.nanargmin(np.linalg.norm(centroids - mid_anchor, axis=1)))
+                except Exception:
+                    mid_idx = len(spoints) // 2
+            else:
+                mid_idx = len(spoints) // 2
+
+            tip = spoints[tip_idx]
+            mid = spoints[mid_idx]
         if tip is not None and len(tip) > 0:
             tip_x = tip[:, 0]
             tip_y = tip[:, 1]
