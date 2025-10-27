@@ -333,6 +333,14 @@ def show_overview(mesh, results):
     with col3:
         st.metric("Wall Vertices", results['num_wall_vertices'])
     
+        # Show whether we swapped GC order compared to file-order when loading
+        swapped_flag = results.get('gc_order_swapped_from_file', None)
+        if swapped_flag is not None:
+            if swapped_flag:
+                st.warning("Guard-cell order was swapped on load: GC1 is left, GC2 is right (file order differed)")
+            else:
+                st.success("Guard-cell order preserved from file (GC1 = left, GC2 = right)")
+    
     # Dimensional information
     if 'wall_distance' in results:
         st.subheader("Dimensional Analysis")
