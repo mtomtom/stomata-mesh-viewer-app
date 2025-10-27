@@ -542,7 +542,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                     y=section_y,
                     z=section_z,
                     mode='lines',
-                    line=dict(width=3, color='gray'),
+                    line=dict(width=3, color='lightgray'),
                     name='GC1 Cross-sections' if i == 0 else None,
                     legendgroup='gc1_sections',
                     showlegend=(i == 0)
@@ -564,7 +564,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                     y=section_y,
                     z=section_z,
                     mode='lines',
-                    line=dict(width=3, color='gray'),
+                    line=dict(width=3, color='lightgray'),
                     name='GC2 Cross-sections' if i == 0 else None,
                     legendgroup='gc2_sections',
                     showlegend=(i == 0)
