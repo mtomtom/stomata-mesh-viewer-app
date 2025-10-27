@@ -377,7 +377,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         )
     
     # Create and display the main 3D visualization
-    fig = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres)
+    fig = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres, show_tip_midsection)
     st.plotly_chart(fig, use_container_width=True)
     
     # Component Analysis
