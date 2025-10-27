@@ -587,7 +587,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                 y=tip_y,
                 z=tip_z,
                 mode='lines',
-                line=dict(width=4, color='yellow'),
+                line=dict(width=10, color='yellow'),
                 name='Tip Cross-Section'
             ))
 
@@ -603,7 +603,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
                 y=mid_y,
                 z=mid_z,
                 mode='lines',
-                line=dict(width=4, color='magenta'),
+                line=dict(width=10, color='magenta'),
                 name='Mid Cross-Section'
             ))
         
