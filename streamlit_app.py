@@ -432,7 +432,10 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         )
     
     # Create and display the main 3D visualization
-    fig = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres, show_tip_midsection)
+    mesh_color = st.color_picker("Choose mesh color", "#0072B2")
+
+
+    fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection)
     st.plotly_chart(fig, use_container_width=True)
     
     # Component Analysis
@@ -446,7 +449,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -470,7 +473,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, show_wall_vertices=True, sh
         i=mesh.faces[:, 0],
         j=mesh.faces[:, 1],
         k=mesh.faces[:, 2],
-        color="#0072B2",
+        color=mesh_color,
         opacity=opacity,
         name='Complete Mesh'
     ))
