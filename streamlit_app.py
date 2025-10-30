@@ -740,6 +740,51 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
         height=600
     )
     
+    # Add a 2D overlay scale bar in paper coordinates so it's always visible in the HTML export
+    if show_scale_bar:
+        try:
+            # Use the same length computed above if available
+            bbox = results.get('bounding_box', None)
+            if bbox is None:
+                mesh = results['mesh']
+                bbox = mesh.bounds
+            bbox_min = np.array(bbox[0], dtype=float)
+            bbox_max = np.array(bbox[1], dtype=float)
+            dims = bbox_max - bbox_min
+            max_dim = float(dims.max()) if dims.max() > 0 else 1.0
+            length = float(scale_bar_fraction) * max_dim
+
+            # Paper coordinates positions
+            x0 = 0.03
+            x1 = x0 + 0.25  # occupies 25% of the figure width by default
+
+            fig.update_layout(
+                shapes=[
+                    dict(
+                        type='line', xref='paper', x0=x0, x1=x1, yref='paper', y0=0.06, y1=0.06,
+                        line=dict(color='black', width=4)
+                    ),
+                    dict(
+                        type='line', xref='paper', x0=x0, x1=x0, yref='paper', y0=0.055, y1=0.065,
+                        line=dict(color='black', width=2)
+                    ),
+                    dict(
+                        type='line', xref='paper', x0=x1, x1=x1, yref='paper', y0=0.055, y1=0.065,
+                        line=dict(color='black', width=2)
+                    )
+                ],
+                annotations=[
+                    dict(
+                        x=(x0 + x1) / 2, y=0.02, xref='paper', yref='paper',
+                        text=f"{length:.2f} units",
+                        showarrow=False,
+                        font=dict(size=12, color='black')
+                    )
+                ]
+            )
+        except Exception:
+            pass
+    
     return fig
 
 def show_download_results(results, original_filename="stomata"):
