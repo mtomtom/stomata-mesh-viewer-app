@@ -412,7 +412,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
     show_scale_bar = st.checkbox("Show scale bar (screen-fixed)", value=True)
     # Fixed scale bar length choices in micrometers (user requested fixed amounts)
-    scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=2)
+    scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=1)
     
     with col2:
         st.subheader("Orientation")
@@ -788,9 +788,10 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 ],
                 annotations=[
                     dict(
-                        x=(x0 + x1) / 2, y=0.02, xref='paper', yref='paper',
+                        x=(x0 + x1) / 2, y=0.12, xref='paper', yref='paper',
                         text=f"{physical_label:.2f} {unit_label}",
                         showarrow=False,
+                        yanchor='bottom',
                         font=dict(size=16, color='black', family='Arial')
                     )
                 ]
