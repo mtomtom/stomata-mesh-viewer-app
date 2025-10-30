@@ -428,13 +428,13 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     fig_for_download = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
     html_data = fig_for_download.to_html(include_plotlyjs=True)
 
-        st.download_button(
-            label="📄 Download as HTML",
-            data=html_data,
-            file_name="stomata_analysis.html",
-            mime="text/html",
-            help="Download the interactive 3D plot as a standalone HTML file"
-        )
+    st.download_button(
+        label="📄 Download as HTML",
+        data=html_data,
+        file_name="stomata_analysis.html",
+        mime="text/html",
+        help="Download the interactive 3D plot as a standalone HTML file"
+    )
     
 
     fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
