@@ -456,7 +456,22 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     )
     
 
-    fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
+    fig = create_detailed_mesh_plot(
+        results,
+        opacity,
+        mesh_color=mesh_color,
+        show_wall_vertices=show_wall_vertices,
+        show_centreline=show_centreline,
+        show_circles=show_circles,
+        show_cross_sections=show_cross_sections,
+        flip_180=flip_180,
+        show_wall_centres=show_wall_centres,
+        show_tip_midsection=show_tip_midsection,
+        show_scale_bar=show_scale_bar,
+        scale_bar_fraction=scale_bar_fraction,
+        unit_label=unit_label,
+        scale_factor=scale_factor,
+    )
     st.plotly_chart(fig, use_container_width=True)
     
     # Component Analysis
