@@ -409,6 +409,8 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_cross_sections = st.checkbox("Show cross sections", value=True)
         show_wall_centres = st.checkbox("Show wall centres", value=False)
         show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
+        show_scale_bar = st.checkbox("Show scale bar", value=True)
+        scale_bar_fraction = st.slider("Scale bar fraction of max dimension", 0.01, 0.5, 0.1, 0.01)
     
     with col2:
         st.subheader("Orientation")
@@ -419,8 +421,8 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.subheader("Export Options")
         
-        # Generate HTML data immediately for download
-        fig_for_download = create_detailed_mesh_plot(results, opacity, show_wall_vertices, show_centreline, show_circles, show_cross_sections, flip_180, show_wall_centres, show_tip_midsection)
+    # Generate HTML data immediately for download
+    fig_for_download = create_detailed_mesh_plot(results, opacity, mesh_color="#0072B2", show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
         html_data = fig_for_download.to_html(include_plotlyjs=True)
         
         st.download_button(
@@ -435,7 +437,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     mesh_color = st.color_picker("Choose mesh color", "#0072B2")
 
 
-    fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection)
+    fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
     st.plotly_chart(fig, use_container_width=True)
     
     # Component Analysis
@@ -449,7 +451,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_fraction=0.1):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -668,6 +670,60 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     
     # Create figure
     fig = go.Figure(data=traces)
+    
+    # Optional 3D scale bar (drawn in scene coordinates)
+    if show_scale_bar:
+        try:
+            bbox = results.get('bounding_box', None)
+            if bbox is None:
+                mesh = results['mesh']
+                bbox = mesh.bounds
+            bbox_min = np.array(bbox[0], dtype=float)
+            bbox_max = np.array(bbox[1], dtype=float)
+            dims = bbox_max - bbox_min
+            max_dim = float(dims.max()) if dims.max() > 0 else 1.0
+
+            length = float(scale_bar_fraction) * max_dim
+
+            # place scale bar near the (min,min,min) corner with a small inset
+            inset = 0.04 * dims
+            start = bbox_min + inset
+            end = start + np.array([length, 0.0, 0.0])
+
+            # Apply flip transform if requested
+            if flip_180:
+                start[0] = -start[0]
+                start[2] = -start[2]
+                end[0] = -end[0]
+                end[2] = -end[2]
+
+            # Scale bar line
+            traces.append(go.Scatter3d(
+                x=[start[0], end[0]],
+                y=[start[1], end[1]],
+                z=[start[2], end[2]],
+                mode='lines',
+                line=dict(width=6, color='black'),
+                name='Scale Bar',
+                showlegend=False
+            ))
+
+            # Label at midpoint slightly above the bar
+            mid = 0.5 * (start + end)
+            label_pos = mid + np.array([0.0, 0.03 * max_dim, 0.0])
+            label_text = f"{length:.2f} units"
+            traces.append(go.Scatter3d(
+                x=[label_pos[0]],
+                y=[label_pos[1]],
+                z=[label_pos[2]],
+                mode='text',
+                text=[label_text],
+                textfont=dict(size=12, color='black'),
+                showlegend=False
+            ))
+        except Exception:
+            # Fail silently if bounding box missing or numeric issues
+            pass
     
     title = "3D Mesh Analysis"
     if flip_180:
