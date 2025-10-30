@@ -96,6 +96,15 @@ def main():
                     min_value=1e-6, max_value=1e-3, value=1e-5, format="%.1e",
                     help="Distance threshold for detecting shared wall vertices"
                 )
+                # Scale bar controls (always visible in the sidebar)
+                st.subheader("Scale Bar")
+                show_scale_bar = st.checkbox("Show scale bar (screen-fixed)", value=True)
+                scale_bar_length_um = st.selectbox(
+                    "Scale bar length (µm)", options=[1, 2, 5, 10], index=2,
+                    help="Choose a fixed physical length for the on-screen scale bar (in µm)"
+                )
+                # Echo current selection so it's obvious in the sidebar
+                st.write(f"Selected scale bar length: {scale_bar_length_um} µm")
 
     # Main content area
     if uploaded_file is not None:
