@@ -771,12 +771,10 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             x0 = 0.03
             x1 = x0 + paper_width
 
-            # compute label placement so it doesn't sit in the middle of the scale bar
-            # prefer placing label near the right end of the bar with a small margin
-            margin = max(0.02, 0.03 * paper_width)
-            label_x = min(x1 - margin, 0.98)
-            # place label a bit above the bar (bar y==0.06), using bottom anchor
-            label_y = 0.06 + 0.03
+            # place the label centered over the bar (user requested middle placement)
+            label_x = (x0 + x1) / 2
+            # place label slightly below the bar so it doesn't overlap (use top anchor)
+            label_y = 0.01
 
             fig.update_layout(
                 shapes=[
