@@ -788,10 +788,10 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 ],
                 annotations=[
                     dict(
-                        x=(x0 + x1) / 2, y=0.12, xref='paper', yref='paper',
+                        x=(x0 + x1) / 2, y=0.01, xref='paper', yref='paper',
                         text=f"{physical_label:.2f} {unit_label}",
                         showarrow=False,
-                        yanchor='bottom',
+                        yanchor='top',
                         font=dict(size=16, color='black', family='Arial')
                     )
                 ]
