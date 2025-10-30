@@ -409,8 +409,9 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_cross_sections = st.checkbox("Show cross sections", value=True)
         show_wall_centres = st.checkbox("Show wall centres", value=False)
         show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
-        show_scale_bar = st.checkbox("Show scale bar", value=True)
-        scale_bar_fraction = st.slider("Scale bar fraction of max dimension", 0.01, 0.5, 0.1, 0.01)
+    show_scale_bar = st.checkbox("Show scale bar", value=True)
+    # Fixed scale bar length choices in micrometers (user requested fixed amounts)
+    scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=2)
     
     with col2:
         st.subheader("Orientation")
@@ -420,11 +421,11 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         
     with col3:
         st.subheader("Export Options")
-        # Choose mesh color (affects both display and download)
-        mesh_color = st.color_picker("Choose mesh color", "#0072B2")
-        # Unit label and conversion (real units per mesh unit)
-        unit_label = st.text_input("Unit label", value="units")
-        scale_factor = st.number_input("Scale factor (real units per mesh unit)", value=1.0, format="%.6f")
+    # Choose mesh color (affects both display and download)
+    mesh_color = st.color_picker("Choose mesh color", "#0072B2")
+    # Units are micrometres (µm) per your request
+    unit_label = "µm"
+    scale_factor = 1.0
 
     # Create and display the main 3D visualization
     
@@ -441,7 +442,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_wall_centres=show_wall_centres,
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
-        scale_bar_fraction=scale_bar_fraction,
+        scale_bar_length_um=scale_bar_length_um,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
@@ -468,7 +469,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_wall_centres=show_wall_centres,
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
-        scale_bar_fraction=scale_bar_fraction,
+        scale_bar_length_um=scale_bar_length_um,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
@@ -485,7 +486,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_fraction=0.1, unit_label="units", scale_factor=1.0):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_length_um=None, unit_label="units", scale_factor=1.0):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -717,12 +718,19 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             dims = bbox_max - bbox_min
             max_dim = float(dims.max()) if dims.max() > 0 else 1.0
 
-            length = float(scale_bar_fraction) * max_dim
+            # Convert requested physical length (µm) into mesh units using scale_factor
+            if scale_bar_length_um is None:
+                # Fallback: use 10% of max dim
+                length_mesh = 0.1 * max_dim
+                physical_label = length_mesh * scale_factor
+            else:
+                length_mesh = float(scale_bar_length_um) / float(scale_factor)
+                physical_label = float(scale_bar_length_um)
 
             # place scale bar near the (min,min,min) corner with a small inset
             inset = 0.04 * dims
             start = bbox_min + inset
-            end = start + np.array([length, 0.0, 0.0])
+            end = start + np.array([length_mesh, 0.0, 0.0])
 
             # Apply flip transform if requested
             if flip_180:
@@ -745,7 +753,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             # Label at midpoint slightly above the bar
             mid = 0.5 * (start + end)
             label_pos = mid + np.array([0.0, 0.03 * max_dim, 0.0])
-            label_text = f"{(length * scale_factor):.2f} {unit_label}"
+            label_text = f"{physical_label:.2f} {unit_label}"
             traces.append(go.Scatter3d(
                 x=[label_pos[0]],
                 y=[label_pos[1]],
@@ -786,16 +794,18 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             bbox_max = np.array(bbox[1], dtype=float)
             dims = bbox_max - bbox_min
             max_dim = float(dims.max()) if dims.max() > 0 else 1.0
-            length = float(scale_bar_fraction) * max_dim
+            # Compute paper overlay width based on the requested physical length
+            if scale_bar_length_um is None:
+                length_mesh = 0.1 * max_dim
+                physical_label = length_mesh * scale_factor
+            else:
+                length_mesh = float(scale_bar_length_um) / float(scale_factor)
+                physical_label = float(scale_bar_length_um)
 
-            # Map the scale_bar_fraction (a fraction of the data max dimension) to a
-            # reasonable paper-space fraction so the overlay width visually tracks the slider.
-            # Normalize slider (assumed range 0.01..0.5) to 0..1, then map to paper width 5%..45%.
-            try:
-                normalized = (float(scale_bar_fraction) - 0.01) / (0.5 - 0.01)
-            except Exception:
-                normalized = 0.2
-            normalized = max(0.0, min(1.0, normalized))
+            # fraction of the data max dimension represented by the chosen length
+            fraction_of_max = length_mesh / max_dim if max_dim > 0 else 0.0
+            normalized = max(0.0, min(1.0, fraction_of_max))
+            # map normalized (0..1) to paper width range 5%..45%
             paper_width = 0.05 + normalized * 0.4
 
             # Paper coordinates positions
@@ -820,7 +830,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 annotations=[
                     dict(
                         x=(x0 + x1) / 2, y=0.02, xref='paper', yref='paper',
-                        text=f"{(length * scale_factor):.2f} {unit_label}",
+                        text=f"{physical_label:.2f} {unit_label}",
                         showarrow=False,
                         font=dict(size=12, color='black')
                     )
