@@ -771,6 +771,13 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             x0 = 0.03
             x1 = x0 + paper_width
 
+            # compute label placement so it doesn't sit in the middle of the scale bar
+            # prefer placing label near the right end of the bar with a small margin
+            margin = max(0.02, 0.03 * paper_width)
+            label_x = min(x1 - margin, 0.98)
+            # place label a bit above the bar (bar y==0.06), using bottom anchor
+            label_y = 0.06 + 0.03
+
             fig.update_layout(
                 shapes=[
                     dict(
@@ -788,8 +795,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 ],
                 annotations=[
                     dict(
-                        # move label slightly to the right of centre and higher up
-                        x=(x0 + x1) / 2 + 0.03, y=0.08, xref='paper', yref='paper',
+                        x=label_x, y=label_y, xref='paper', yref='paper',
                         text=f"{physical_label:.2f} {unit_label}",
                         showarrow=False,
                         yanchor='bottom',
