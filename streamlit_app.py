@@ -412,7 +412,8 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
     show_scale_bar = st.checkbox("Show scale bar (screen-fixed)", value=True)
     # Fixed scale bar length choices in micrometers (user requested fixed amounts)
-    scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=1)
+    # Include 2 µm as an option per user request. Default remains 5 µm.
+    scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 2, 5, 10], index=2)
     
     with col2:
         st.subheader("Orientation")
@@ -775,7 +776,10 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             # apply a small leftward nudge so the text appears visually centered
             # (some fonts can make exact centre look slightly off)
             nudge_left = 0.015
-            desired_x = (x0 + x1) / 2 - nudge_left
+            # make label placement independent of the bar width so the text
+            # remains visually centered even when the bar scales.
+            # Use paper-centre minus the same small leftward nudge.
+            desired_x = 0.5 - nudge_left
             # clamp to avoid clipping at figure edges
             label_x = max(0.02, min(0.98, desired_x))
             # place label slightly below the bar so it doesn't overlap (use top anchor)
