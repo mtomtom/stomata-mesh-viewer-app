@@ -775,15 +775,15 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 shapes=[
                     dict(
                         type='line', xref='paper', x0=x0, x1=x1, yref='paper', y0=0.06, y1=0.06,
+                        line=dict(color='black', width=8)
+                    ),
+                    dict(
+                        type='line', xref='paper', x0=x0, x1=x0, yref='paper', y0=0.05, y1=0.07,
                         line=dict(color='black', width=4)
                     ),
                     dict(
-                        type='line', xref='paper', x0=x0, x1=x0, yref='paper', y0=0.055, y1=0.065,
-                        line=dict(color='black', width=2)
-                    ),
-                    dict(
-                        type='line', xref='paper', x0=x1, x1=x1, yref='paper', y0=0.055, y1=0.065,
-                        line=dict(color='black', width=2)
+                        type='line', xref='paper', x0=x1, x1=x1, yref='paper', y0=0.05, y1=0.07,
+                        line=dict(color='black', width=4)
                     )
                 ],
                 annotations=[
@@ -791,7 +791,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                         x=(x0 + x1) / 2, y=0.02, xref='paper', yref='paper',
                         text=f"{physical_label:.2f} {unit_label}",
                         showarrow=False,
-                        font=dict(size=12, color='black')
+                        font=dict(size=16, color='black', family='Arial')
                     )
                 ]
             )
