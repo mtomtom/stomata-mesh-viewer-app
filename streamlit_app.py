@@ -7,6 +7,7 @@ try:
     import pandas as pd
     import numpy as np
     import plotly.graph_objects as go
+    import plotly.io as pio
     from plotly.subplots import make_subplots
     import matplotlib.pyplot as plt
     from sklearn.decomposition import PCA
@@ -451,7 +452,17 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
-    html_data = fig_for_download.to_html(include_plotlyjs=True)
+    # Decide on plotly config: if the 3D scale bar is shown we disable zoom controls so the
+    # scale remains visually consistent. If the user didn't request the scale bar, allow zoom.
+    if show_scale_bar:
+        plotly_config = dict(scrollZoom=False,
+                             displayModeBar=True,
+                             modeBarButtonsToRemove=['zoom3d', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'zoomIn3d', 'zoomOut3d', 'zoom', 'zoomIn', 'zoomOut'])
+    else:
+        plotly_config = dict(scrollZoom=True)
+
+    # Export HTML using plotly.io so we can include the same interaction config
+    html_data = pio.to_html(fig_for_download, include_plotlyjs='cdn', full_html=True, config=plotly_config)
 
     st.download_button(
         label="📄 Download as HTML",
@@ -479,7 +490,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config=plotly_config)
     
     # Component Analysis
     st.subheader("Component Analysis")
