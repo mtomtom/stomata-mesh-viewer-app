@@ -420,12 +420,31 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         
     with col3:
         st.subheader("Export Options")
+        # Choose mesh color (affects both display and download)
+        mesh_color = st.color_picker("Choose mesh color", "#0072B2")
+        # Unit label and conversion (real units per mesh unit)
+        unit_label = st.text_input("Unit label", value="units")
+        scale_factor = st.number_input("Scale factor (real units per mesh unit)", value=1.0, format="%.6f")
 
     # Create and display the main 3D visualization
-    mesh_color = st.color_picker("Choose mesh color", "#0072B2")
-        
+    
     # Generate HTML data immediately for download
-    fig_for_download = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
+    fig_for_download = create_detailed_mesh_plot(
+        results,
+        opacity,
+        mesh_color=mesh_color,
+        show_wall_vertices=show_wall_vertices,
+        show_centreline=show_centreline,
+        show_circles=show_circles,
+        show_cross_sections=show_cross_sections,
+        flip_180=flip_180,
+        show_wall_centres=show_wall_centres,
+        show_tip_midsection=show_tip_midsection,
+        show_scale_bar=show_scale_bar,
+        scale_bar_fraction=scale_bar_fraction,
+        unit_label=unit_label,
+        scale_factor=scale_factor,
+    )
     html_data = fig_for_download.to_html(include_plotlyjs=True)
 
     st.download_button(
@@ -451,7 +470,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_fraction=0.1):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_fraction=0.1, unit_label="units", scale_factor=1.0):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -711,7 +730,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             # Label at midpoint slightly above the bar
             mid = 0.5 * (start + end)
             label_pos = mid + np.array([0.0, 0.03 * max_dim, 0.0])
-            label_text = f"{length:.2f} units"
+            label_text = f"{(length * scale_factor):.2f} {unit_label}"
             traces.append(go.Scatter3d(
                 x=[label_pos[0]],
                 y=[label_pos[1]],
@@ -754,9 +773,19 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             max_dim = float(dims.max()) if dims.max() > 0 else 1.0
             length = float(scale_bar_fraction) * max_dim
 
+            # Map the scale_bar_fraction (a fraction of the data max dimension) to a
+            # reasonable paper-space fraction so the overlay width visually tracks the slider.
+            # Normalize slider (assumed range 0.01..0.5) to 0..1, then map to paper width 5%..45%.
+            try:
+                normalized = (float(scale_bar_fraction) - 0.01) / (0.5 - 0.01)
+            except Exception:
+                normalized = 0.2
+            normalized = max(0.0, min(1.0, normalized))
+            paper_width = 0.05 + normalized * 0.4
+
             # Paper coordinates positions
             x0 = 0.03
-            x1 = x0 + 0.25  # occupies 25% of the figure width by default
+            x1 = x0 + paper_width
 
             fig.update_layout(
                 shapes=[
@@ -776,7 +805,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 annotations=[
                     dict(
                         x=(x0 + x1) / 2, y=0.02, xref='paper', yref='paper',
-                        text=f"{length:.2f} units",
+                        text=f"{(length * scale_factor):.2f} {unit_label}",
                         showarrow=False,
                         font=dict(size=12, color='black')
                     )
