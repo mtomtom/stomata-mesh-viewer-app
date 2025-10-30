@@ -777,9 +777,12 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             # map normalized (0..1) to paper width range 5%..45%
             paper_width = 0.05 + normalized * 0.4
 
-            # Paper coordinates positions
-            x0 = 0.03
-            x1 = x0 + paper_width
+            # Paper coordinates positions: centre the scale bar horizontally
+            # so the label (anchored near paper centre) remains visually above it
+            x_center = 0.5
+            # compute left edge and clamp to avoid clipping
+            x0 = max(0.02, x_center - (paper_width / 2.0))
+            x1 = min(0.98, x0 + paper_width)
 
             # place the label centered over the bar (user requested middle placement)
             # apply a small leftward nudge so the text appears visually centered
