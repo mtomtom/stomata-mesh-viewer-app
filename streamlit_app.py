@@ -412,6 +412,10 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     show_scale_bar = st.checkbox("Show scale bar", value=True)
     # Fixed scale bar length choices in micrometers (user requested fixed amounts)
     scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=2)
+    # Option: keep a paper-anchored overlay (fixed to screen) or rely on the 3D scale bar
+    # which will visually scale when the user zooms the 3D view. Default: False (use 3D bar).
+    show_paper_overlay = st.checkbox("Show paper-overlay scale bar (fixed on screen)", value=False,
+                     help="When checked a 2D scale bar is drawn in screen space and will NOT change when you zoom; uncheck to let the 3D scale bar visually scale with camera zoom.")
     
     with col2:
         st.subheader("Orientation")
@@ -443,6 +447,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
         scale_bar_length_um=scale_bar_length_um,
+        show_paper_overlay=show_paper_overlay,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
@@ -470,6 +475,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
         scale_bar_length_um=scale_bar_length_um,
+        show_paper_overlay=show_paper_overlay,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
