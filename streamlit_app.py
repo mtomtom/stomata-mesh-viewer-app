@@ -420,11 +420,14 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         
     with col3:
         st.subheader("Export Options")
+
+    # Create and display the main 3D visualization
+    mesh_color = st.color_picker("Choose mesh color", "#0072B2")
         
     # Generate HTML data immediately for download
-    fig_for_download = create_detailed_mesh_plot(results, opacity, mesh_color="#0072B2", show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
-        html_data = fig_for_download.to_html(include_plotlyjs=True)
-        
+    fig_for_download = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
+    html_data = fig_for_download.to_html(include_plotlyjs=True)
+
         st.download_button(
             label="📄 Download as HTML",
             data=html_data,
@@ -433,9 +436,6 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
             help="Download the interactive 3D plot as a standalone HTML file"
         )
     
-    # Create and display the main 3D visualization
-    mesh_color = st.color_picker("Choose mesh color", "#0072B2")
-
 
     fig = create_detailed_mesh_plot(results, opacity, mesh_color=mesh_color, show_wall_vertices=show_wall_vertices, show_centreline=show_centreline, show_circles=show_circles, show_cross_sections=show_cross_sections, flip_180=flip_180, show_wall_centres=show_wall_centres, show_tip_midsection=show_tip_midsection, show_scale_bar=show_scale_bar, scale_bar_fraction=scale_bar_fraction)
     st.plotly_chart(fig, use_container_width=True)
