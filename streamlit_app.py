@@ -735,7 +735,17 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
 
             # place scale bar near the (min,min,min) corner with a small inset
             inset = 0.04 * dims
-            start = bbox_min + inset
+            # Defensive: ensure length_mesh is reasonable
+            if not np.isfinite(length_mesh) or length_mesh <= 0:
+                length_mesh = max(1e-6, 0.01 * max_dim)
+
+            # Position the bar slightly outside/min-x of the bounding box so it's less likely
+            # to be occluded by the mesh surface. If that places it far from the view, it
+            # still remains visible when rotating/zooming.
+            start = np.array(bbox_min, dtype=float)
+            start[0] = start[0] - 0.02 * max_dim  # nudge outside on X
+            start[1] = start[1] + inset[1]
+            start[2] = start[2] + inset[2]
             end = start + np.array([length_mesh, 0.0, 0.0])
 
             # Apply flip transform if requested
@@ -745,14 +755,14 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
                 end[0] = -end[0]
                 end[2] = -end[2]
 
-            # Scale bar line
+            # Scale bar line (drawn as a bold black line so it's visible)
             traces.append(go.Scatter3d(
                 x=[start[0], end[0]],
                 y=[start[1], end[1]],
                 z=[start[2], end[2]],
                 mode='lines',
-                line=dict(width=6, color='black'),
-                name='Scale Bar',
+                line=dict(width=8, color='black'),
+                name='Scale Bar 3D',
                 showlegend=False
             ))
 
