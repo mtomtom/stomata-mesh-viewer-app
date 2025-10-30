@@ -780,7 +780,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             label_x = max(0.02, min(0.98, desired_x))
             # place label slightly below the bar so it doesn't overlap (use top anchor)
             # moved down a touch compared to previous value
-            label_y = 0.0075
+            label_y = 0.0025
 
             fig.update_layout(
                 shapes=[
