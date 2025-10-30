@@ -447,11 +447,21 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
-    # Use a permissive Plotly config (allow zoom/pan) since we are using a screen-fixed
-    # paper-overlay scale bar which will remain visible regardless of camera zoom.
-    plotly_config = dict(scrollZoom=True)
+    # Configure Plotly interactivity: when the screen-fixed scale bar is shown,
+    # disable zooming to keep the visual scale consistent. Otherwise allow zoom.
+    if show_scale_bar:
+        plotly_config = dict(
+            scrollZoom=False,
+            displayModeBar=True,
+            modeBarButtonsToRemove=[
+                'zoom3d', 'zoom2d', 'zoomIn2d', 'zoomOut2d',
+                'zoomIn', 'zoomOut', 'zoom', 'zoomIn3d', 'zoomOut3d'
+            ]
+        )
+    else:
+        plotly_config = dict(scrollZoom=True)
 
-    # Export HTML using plotly.io with the same config
+    # Export HTML using plotly.io with the chosen config
     html_data = pio.to_html(fig_for_download, include_plotlyjs='cdn', full_html=True, config=plotly_config)
 
     st.download_button(
