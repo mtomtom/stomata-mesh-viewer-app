@@ -492,7 +492,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_length_um=None, unit_label="units", scale_factor=1.0):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_length_um=None, show_paper_overlay=False, unit_label="units", scale_factor=1.0, **kwargs):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -789,7 +789,9 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     )
     
     # Add a 2D overlay scale bar in paper coordinates so it's always visible in the HTML export
-    if show_scale_bar:
+    # Only draw the paper-overlay if the user explicitly requested it. Otherwise rely on
+    # the 3D scene-anchored scale bar which will visually change when the user zooms.
+    if show_scale_bar and show_paper_overlay:
         try:
             # Use the same length computed above if available
             bbox = results.get('bounding_box', None)
