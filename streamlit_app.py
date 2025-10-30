@@ -410,13 +410,9 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_cross_sections = st.checkbox("Show cross sections", value=True)
         show_wall_centres = st.checkbox("Show wall centres", value=False)
         show_tip_midsection = st.checkbox("Show tip/mid cross-sections", value=True)
-    show_scale_bar = st.checkbox("Show scale bar", value=True)
+    show_scale_bar = st.checkbox("Show scale bar (screen-fixed)", value=True)
     # Fixed scale bar length choices in micrometers (user requested fixed amounts)
     scale_bar_length_um = st.selectbox("Scale bar length (µm)", options=[1, 5, 10], index=2)
-    # Option: keep a paper-anchored overlay (fixed to screen) or rely on the 3D scale bar
-    # which will visually scale when the user zooms the 3D view. Default: False (use 3D bar).
-    show_paper_overlay = st.checkbox("Show paper-overlay scale bar (fixed on screen)", value=False,
-                     help="When checked a 2D scale bar is drawn in screen space and will NOT change when you zoom; uncheck to let the 3D scale bar visually scale with camera zoom.")
     
     with col2:
         st.subheader("Orientation")
@@ -448,20 +444,14 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
         scale_bar_length_um=scale_bar_length_um,
-        show_paper_overlay=show_paper_overlay,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
-    # Decide on plotly config: if the 3D scale bar is shown we disable zoom controls so the
-    # scale remains visually consistent. If the user didn't request the scale bar, allow zoom.
-    if show_scale_bar:
-        plotly_config = dict(scrollZoom=False,
-                             displayModeBar=True,
-                             modeBarButtonsToRemove=['zoom3d', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'zoomIn3d', 'zoomOut3d', 'zoom', 'zoomIn', 'zoomOut'])
-    else:
-        plotly_config = dict(scrollZoom=True)
+    # Use a permissive Plotly config (allow zoom/pan) since we are using a screen-fixed
+    # paper-overlay scale bar which will remain visible regardless of camera zoom.
+    plotly_config = dict(scrollZoom=True)
 
-    # Export HTML using plotly.io so we can include the same interaction config
+    # Export HTML using plotly.io with the same config
     html_data = pio.to_html(fig_for_download, include_plotlyjs='cdn', full_html=True, config=plotly_config)
 
     st.download_button(
@@ -486,7 +476,6 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
         show_tip_midsection=show_tip_midsection,
         show_scale_bar=show_scale_bar,
         scale_bar_length_um=scale_bar_length_um,
-        show_paper_overlay=show_paper_overlay,
         unit_label=unit_label,
         scale_factor=scale_factor,
     )
@@ -503,7 +492,7 @@ def show_mesh_analysis(mesh, results, opacity=0.65):
     with col3:
         st.write(f"**Shared wall vertices:** {results['num_wall_vertices']}")
 
-def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_length_um=None, show_paper_overlay=False, unit_label="units", scale_factor=1.0, **kwargs):
+def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_wall_vertices=True, show_centreline=True, show_circles=False, show_cross_sections=False, flip_180=False, show_wall_centres=False, show_tip_midsection=False, show_scale_bar=False, scale_bar_length_um=None, unit_label="units", scale_factor=1.0, **kwargs):
     """Create a comprehensive 3D plot with all analysis components"""
     traces = []
     
@@ -723,76 +712,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     # Create figure
     fig = go.Figure(data=traces)
     
-    # Optional 3D scale bar (drawn in scene coordinates)
-    if show_scale_bar:
-        try:
-            bbox = results.get('bounding_box', None)
-            if bbox is None:
-                mesh = results['mesh']
-                bbox = mesh.bounds
-            bbox_min = np.array(bbox[0], dtype=float)
-            bbox_max = np.array(bbox[1], dtype=float)
-            dims = bbox_max - bbox_min
-            max_dim = float(dims.max()) if dims.max() > 0 else 1.0
-
-            # Convert requested physical length (µm) into mesh units using scale_factor
-            if scale_bar_length_um is None:
-                # Fallback: use 10% of max dim
-                length_mesh = 0.1 * max_dim
-                physical_label = length_mesh * scale_factor
-            else:
-                length_mesh = float(scale_bar_length_um) / float(scale_factor)
-                physical_label = float(scale_bar_length_um)
-
-            # place scale bar near the (min,min,min) corner with a small inset
-            inset = 0.04 * dims
-            # Defensive: ensure length_mesh is reasonable
-            if not np.isfinite(length_mesh) or length_mesh <= 0:
-                length_mesh = max(1e-6, 0.01 * max_dim)
-
-            # Position the bar slightly outside/min-x of the bounding box so it's less likely
-            # to be occluded by the mesh surface. If that places it far from the view, it
-            # still remains visible when rotating/zooming.
-            start = np.array(bbox_min, dtype=float)
-            start[0] = start[0] - 0.02 * max_dim  # nudge outside on X
-            start[1] = start[1] + inset[1]
-            start[2] = start[2] + inset[2]
-            end = start + np.array([length_mesh, 0.0, 0.0])
-
-            # Apply flip transform if requested
-            if flip_180:
-                start[0] = -start[0]
-                start[2] = -start[2]
-                end[0] = -end[0]
-                end[2] = -end[2]
-
-            # Scale bar line (drawn as a bold black line so it's visible)
-            traces.append(go.Scatter3d(
-                x=[start[0], end[0]],
-                y=[start[1], end[1]],
-                z=[start[2], end[2]],
-                mode='lines',
-                line=dict(width=8, color='black'),
-                name='Scale Bar 3D',
-                showlegend=False
-            ))
-
-            # Label at midpoint slightly above the bar
-            mid = 0.5 * (start + end)
-            label_pos = mid + np.array([0.0, 0.03 * max_dim, 0.0])
-            label_text = f"{physical_label:.2f} {unit_label}"
-            traces.append(go.Scatter3d(
-                x=[label_pos[0]],
-                y=[label_pos[1]],
-                z=[label_pos[2]],
-                mode='text',
-                text=[label_text],
-                textfont=dict(size=12, color='black'),
-                showlegend=False
-            ))
-        except Exception:
-            # Fail silently if bounding box missing or numeric issues
-            pass
+    # (3D scale bar removed — using only the paper-overlay scale bar for consistent screenshot/export behavior)
     
     title = "3D Mesh Analysis"
     if flip_180:
@@ -812,7 +732,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     # Add a 2D overlay scale bar in paper coordinates so it's always visible in the HTML export
     # Only draw the paper-overlay if the user explicitly requested it. Otherwise rely on
     # the 3D scene-anchored scale bar which will visually change when the user zooms.
-    if show_scale_bar and show_paper_overlay:
+    if show_scale_bar:
         try:
             # Use the same length computed above if available
             bbox = results.get('bounding_box', None)
