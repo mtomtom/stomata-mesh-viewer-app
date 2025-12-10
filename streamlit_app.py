@@ -984,17 +984,9 @@ def show_download_results(results, original_filename="stomata", batch_download=N
 
     # Data preview
     st.subheader("Data Preview")
-
-    preview_data = {}
-    if 'areas_gc1' in results:
-        preview_data['GC1_Areas'] = results['areas_gc1']
-    if 'areas_gc2' in results:
-        preview_data['GC2_Areas'] = results['areas_gc2']
-
-    if preview_data:
-        preview_df = pd.DataFrame({k: pd.Series(v) for k, v in preview_data.items()})
+    preview_df = build_results_dataframe(results)
+    if not preview_df.empty:
         st.dataframe(preview_df.head(10), hide_index=True)
-
         if len(preview_df) > 10:
             st.info(f"Showing first 10 rows. Complete dataset contains {len(preview_df)} rows.")
 
