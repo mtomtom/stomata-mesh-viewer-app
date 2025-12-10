@@ -1211,54 +1211,19 @@ def build_results_dataframe(results):
         row['gc1_area'] = float(areas_gc1[i]) if i < len(areas_gc1) else np.nan
         row['gc2_area'] = float(areas_gc2[i]) if i < len(areas_gc2) else np.nan
 
-        if i < len(sections_gc1):
-            section = sections_gc1[i]
-            if section is not None and len(section) > 0:
-                row['gc1_num_points'] = int(len(section))
-                row['gc1_centroid_x'] = float(np.mean(section[:, 0]))
-                row['gc1_centroid_y'] = float(np.mean(section[:, 1]))
-                row['gc1_centroid_z'] = float(np.mean(section[:, 2]))
-
-        if i < len(sections_gc2):
-            section = sections_gc2[i]
-            if section is not None and len(section) > 0:
-                row['gc2_num_points'] = int(len(section))
-                row['gc2_centroid_x'] = float(np.mean(section[:, 0]))
-                row['gc2_centroid_y'] = float(np.mean(section[:, 1]))
-                row['gc2_centroid_z'] = float(np.mean(section[:, 2]))
-
         data.append(row)
 
-    analysis_settings = results.get('analysis_settings') or {}
-
     summary_fields = {
-        'original_filename': results.get('original_filename'),
-        'num_vertices': results.get('num_vertices'),
-        'num_faces': results.get('num_faces'),
-        'mesh_volume': results.get('mesh_volume'),
-        'mesh_area': results.get('mesh_area'),
         'gc1_volume': results.get('gc1_volume'),
         'gc2_volume': results.get('gc2_volume'),
-        'num_parts_total': results.get('num_parts_total'),
         'extra_parts_removed': results.get('extra_parts_removed'),
         'gc_order_swapped_from_file': results.get('gc_order_swapped_from_file'),
-        'num_wall_vertices': results.get('num_wall_vertices'),
-        'wall_distance': results.get('wall_distance'),
-        'avg_area': results.get('avg_area'),
-        'radius': results.get('radius'),
         'gc1_arc_length': results.get('gc1_arc_length'),
-        'gc2_arc_length': results.get('gc2_arc_length'),
-        'analysis_num_sections': analysis_settings.get('num_sections'),
-        'analysis_mesh_opacity': analysis_settings.get('mesh_opacity'),
-        'analysis_circle_radius_factor': analysis_settings.get('circle_radius_factor'),
-        'analysis_wall_threshold': analysis_settings.get('wall_threshold')
+        'gc2_arc_length': results.get('gc2_arc_length')
     }
 
     numeric_keys = {
-        'num_vertices', 'num_faces', 'mesh_volume', 'mesh_area',
-        'gc1_volume', 'gc2_volume', 'num_parts_total', 'num_wall_vertices',
-        'wall_distance', 'avg_area', 'radius', 'gc1_arc_length', 'gc2_arc_length',
-        'analysis_num_sections', 'analysis_mesh_opacity', 'analysis_circle_radius_factor', 'analysis_wall_threshold'
+        'gc1_volume', 'gc2_volume', 'gc1_arc_length', 'gc2_arc_length'
     }
 
     for key in numeric_keys:
