@@ -1,3 +1,12 @@
+# To implement: It would be great if the cross-section PNGs each had a scale bar and if they were oriented correctly upon export. For example, in part B) of the attached figure, I had to reorientate the cross-sections based on my own intuition, which is fine as after 4 years of looking at GC cross-sections I'm pretty familiar with them, but there is the potential for human error when they are being reorientated.  
+
+# It would also be great if the stomate ID and the timepoint that are in the name of the OBJ files (e.g. Rep2_S1_t0) could be pulled through into the title of the 'stomata analysis' csv and the 'cross-sections' folder, so that when I extract the data from a whole set of meshes its immediately clear which files correspond to which meshes. Similarly, if this info could be pulled through into the title of the individual cross-secion PNGs that would be great so that if I have two open at a time I know which one has come from which mesh. 
+
+# How is the centreline determined? Does this go through the centrepoint of the cross-sections? If so, I think this could be a simpler solution for us to measure/approximate arc length than the current skeletons approach? Would there be an easy way to extract the length of this line for each cell (i.e between the top/bottom circles as in the attached image)?
+
+# Ah fantastic - I'm not sure if it would make a large difference, but assume it would be more accurate. All sounds great and hopefully it's not too much extra work for you to implement. Another quick q: would it be possible to set up the app to batch process/analyse meshes? With the Arabidopsis we often have between 5-10 stomata per mesh and it would increase our throughput if we could do something like this, but understand this could be too complicated. It's still so much faster than manual analysis!
+from typing import Any
+
 try:
     import streamlit as st
     import tempfile
@@ -46,10 +55,10 @@ st.set_page_config(
 def main():
     if not IMPORTS_SUCCESS:
         return
-        
+
     st.title("🔬 Stomata Analysis Tool")
     st.markdown("""
-    This interactive tool allows you to analyze stomatal guard cell meshes. Upload an OBJ file to:
+    This interactive tool allows you to analyze stomatal guard cell meshes. Upload OBJ files to:
     - Visualize 3D mesh structure
     - Detect wall vertices and boundaries
     - Extract cross-sections and calculate areas
@@ -57,33 +66,46 @@ def main():
     - Download analysis data
     """)
 
+    uploaded_files = []
+    num_sections = 20
+    mesh_opacity = 0.65
+    circle_radius_factor = None
+    wall_threshold = None
+
     # Sidebar for file upload and settings
     with st.sidebar:
         st.header("📁 File Upload")
-        uploaded_file = st.file_uploader(
-            "Choose an OBJ file", 
+        uploaded_files = st.file_uploader(
+            "Choose OBJ files", 
             type=['obj'],
-            help="Upload a 3D mesh file in OBJ format containing stomatal guard cells"
+            accept_multiple_files=True,
+            help="Upload one or more 3D mesh files in OBJ format containing stomatal guard cells"
         )
-        
-        if uploaded_file is not None:
-            st.success(f"File uploaded: {uploaded_file.name}")
-            
+        if uploaded_files is None:
+            uploaded_files = []
+
+        if uploaded_files:
+            file_count = len(uploaded_files)
+            names_preview = ", ".join(f.name for f in uploaded_files[:3])
+            if file_count > 3:
+                names_preview += ", …"
+            st.success(f"{file_count} file{'s' if file_count != 1 else ''} uploaded: {names_preview}")
+
             st.header("⚙️ Analysis Settings")
             num_sections = st.slider(
                 "Number of cross-sections", 
-                min_value=5, max_value=50, value=20,
+                min_value=5, max_value=50, value=num_sections,
                 help="Number of regular cross-sections to extract along the centreline"
             )
-            
+
             mesh_opacity = st.slider(
                 "Mesh opacity", 
-                min_value=0.1, max_value=1.0, value=0.65, step=0.05,
+                min_value=0.1, max_value=1.0, value=mesh_opacity, step=0.05,
                 help="Transparency level for 3D mesh visualization"
             )
-            
+
             show_advanced = st.checkbox("Show advanced options", value=False)
-            
+
             if show_advanced:
                 st.subheader("Advanced Settings")
                 circle_radius_factor = st.slider(
@@ -96,64 +118,99 @@ def main():
                     min_value=1e-6, max_value=1e-3, value=1e-5, format="%.1e",
                     help="Distance threshold for detecting shared wall vertices"
                 )
-                # Scale bar controls (always visible in the sidebar)
-                st.subheader("Scale Bar")
-                show_scale_bar = st.checkbox("Show scale bar (screen-fixed)", value=True)
-                scale_bar_length_um = st.selectbox(
-                    "Scale bar length (µm)", options=[1, 2, 5, 10], index=2,
-                    help="Choose a fixed physical length for the on-screen scale bar (in µm)"
-                )
-                # Echo current selection so it's obvious in the sidebar
-                st.write(f"Selected scale bar length: {scale_bar_length_um} µm")
+        else:
+            st.info("Upload one or more OBJ files to begin.")
 
-    # Main content area
-    if uploaded_file is not None:
-        # Process the uploaded file
-        with st.spinner("Loading and processing mesh..."):
-            # Save uploaded file to temporary location
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.obj') as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                mesh_path = tmp_file.name
-            
-            try:
-                # Load and analyze the mesh
-                mesh = load_mesh(mesh_path)
-                analysis_results = analyze_mesh_detailed(mesh, num_sections)
-                
-                # Clean up temporary file
-                os.unlink(mesh_path)
-                
-                # Create tabs for different visualizations
-                tab1, tab2, tab3 = st.tabs([
-                    "📊 Overview", "🎯 Mesh Analysis", " Download Results"
-                ])
-                
-                with tab1:
-                    show_overview(mesh, analysis_results)
-                
-                with tab2:
-                    show_mesh_analysis(mesh, analysis_results, mesh_opacity)
-                
-                with tab3:
-                    show_download_results(analysis_results, uploaded_file.name)
-                
-            except Exception as e:
-                st.error(f"Error processing mesh: {str(e)}")
-                st.info("Please ensure your OBJ file contains a valid 3D mesh with two connected components (guard cells).")
-    
+    if uploaded_files:
+        analysis_results_list = []
+        aggregated_frames = []
+        errors = []
+
+        for uploaded_file in uploaded_files:
+            with st.spinner(f"Loading and processing mesh: {uploaded_file.name}"):
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.obj') as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    mesh_path = tmp_file.name
+
+                try:
+                    mesh = load_mesh(mesh_path)
+                    analysis_results = analyze_mesh_detailed(mesh, num_sections)
+                    analysis_results['analysis_settings'] = {
+                        'num_sections': num_sections,
+                        'mesh_opacity': mesh_opacity,
+                        'circle_radius_factor': circle_radius_factor,
+                        'wall_threshold': wall_threshold
+                    }
+                    analysis_results['original_filename'] = uploaded_file.name
+                    analysis_results_list.append((uploaded_file.name, analysis_results))
+
+                    df = build_results_dataframe(analysis_results)
+                    if df.empty:
+                        df = pd.DataFrame([{}])
+                    df.insert(0, 'source_file', uploaded_file.name)
+                    aggregated_frames.append(df)
+                except Exception as e:
+                    errors.append((uploaded_file.name, str(e)))
+                finally:
+                    try:
+                        os.unlink(mesh_path)
+                    except FileNotFoundError:
+                        pass
+
+        if errors:
+            for filename, message in errors:
+                st.error(f"{filename}: {message}")
+            st.info("Files listed above encountered errors and were skipped.")
+
+        if analysis_results_list:
+            aggregated_df = pd.concat(aggregated_frames, ignore_index=True) if aggregated_frames else pd.DataFrame()
+            batch_download = None
+            if not aggregated_df.empty:
+                batch_download = {
+                    "csv_bytes": aggregated_df.to_csv(index=False).encode('utf-8'),
+                    "row_count": len(aggregated_df),
+                    "file_count": len(analysis_results_list),
+                    "filename": "stomata_analysis_batch.csv"
+                }
+
+            file_options = [name for name, _ in analysis_results_list]
+            selected_file = st.selectbox("Select a file to explore", file_options)
+            selected_results = next(result for name, result in analysis_results_list if name == selected_file)
+            selected_mesh = selected_results['mesh']
+
+            tab1, tab2, tab3 = st.tabs([
+                "📊 Overview", "🎯 Mesh Analysis", "📥 Download Results"
+            ])
+
+            with tab1:
+                show_overview(selected_mesh, selected_results)
+
+            with tab2:
+                show_mesh_analysis(selected_mesh, selected_results, mesh_opacity)
+
+            with tab3:
+                show_download_results(selected_results, selected_file, batch_download=batch_download)
+
+            if batch_download and batch_download["file_count"] > 1:
+                st.caption(
+                    f"Aggregated CSV includes {batch_download['row_count']} rows across {batch_download['file_count']} files."
+                )
+        else:
+            st.warning("No valid meshes were processed.")
+
     else:
         # Landing page content
         st.markdown("### 🚀 Getting Started")
         st.markdown("""
-        1. **Upload** an OBJ file containing stomatal guard cell mesh data
+        1. **Upload** OBJ files containing stomatal guard cell mesh data
         2. **Adjust** analysis parameters in the sidebar
         3. **Explore** the different visualization tabs
-        4. **Download** your analysis results
+        4. **Download** your analysis results (including batch CSVs)
         """)
-        
+
         st.markdown("### 📋 What this tool does:")
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown("""
             **Mesh Processing:**
@@ -162,7 +219,7 @@ def main():
             - Detects shared wall vertices
             - Calculates mesh properties
             """)
-        
+
         with col2:
             st.markdown("""
             **Analysis Features:**
@@ -171,10 +228,10 @@ def main():
             - Centreline spline generation
             - 3D visualization
             """)
-        
+
         # Sample data info
         st.markdown("### 📁 Sample Data Format")
-        st.info("Upload OBJ files containing 3D mesh data of stomatal guard cells. The mesh should contain two connected components representing the guard cell pair.")
+        st.info("Upload OBJ files containing 3D mesh data of stomatal guard cells. Each mesh should contain two connected components representing the guard cell pair.")
 
 def analyze_mesh_detailed(mesh, num_sections=20):
     """
@@ -828,27 +885,37 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     
     return fig
 
-def show_download_results(results, original_filename="stomata"):
+def show_download_results(results, original_filename="stomata", batch_download=None):
     """Display download options for analysis results"""
-    st.header("� Download Analysis Results")
-    
+    st.header("📥 Download Analysis Results")
+
+    base_name = os.path.splitext(original_filename)[0] if original_filename else "stomata"
+
     # Download options in columns
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📊 CSV Data")
-        if st.button("Download CSV Data"):
-            csv_data = create_csv_data(results)
+        csv_data = create_csv_data(results)
+        st.download_button(
+            label="Download CSV Data",
+            data=csv_data,
+            file_name=f"{base_name}_analysis.csv",
+            mime="text/csv"
+        )
+
+        if batch_download and batch_download.get("file_count", 0) > 1:
             st.download_button(
-                label="Click to Download",
-                data=csv_data,
-                file_name="stomata_analysis.csv",
-                mime="text/csv"
+                label=f"Download Aggregated CSV ({batch_download['file_count']} files)",
+                data=batch_download['csv_bytes'],
+                file_name=batch_download.get("filename", "stomata_analysis_batch.csv"),
+                mime="text/csv",
+                help=f"Includes {batch_download['row_count']} rows across {batch_download['file_count']} files."
             )
-    
+
     with col2:
         st.subheader("🖼️ Cross-Section Images")
-        if st.button("Download Cross-Section PNGs"):
+        if st.button("Generate Cross-Section PNGs"):
             if 'section_points_gc1' in results and 'section_points_gc2' in results:
                 with st.spinner("Generating PNG images..."):
                     zip_data = create_cross_section_pngs_package(results, original_filename)
@@ -860,21 +927,20 @@ def show_download_results(results, original_filename="stomata"):
                     )
             else:
                 st.warning("No cross-section data available for PNG generation.")
-    
+
     # Data preview
     st.subheader("Data Preview")
-    
-    # Create preview dataframe
+
     preview_data = {}
     if 'areas_gc1' in results:
         preview_data['GC1_Areas'] = results['areas_gc1']
     if 'areas_gc2' in results:
         preview_data['GC2_Areas'] = results['areas_gc2']
-    
+
     if preview_data:
-        preview_df = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in preview_data.items()]))
+        preview_df = pd.DataFrame({k: pd.Series(v) for k, v in preview_data.items()})
         st.dataframe(preview_df.head(10), hide_index=True)
-        
+
         if len(preview_df) > 10:
             st.info(f"Showing first 10 rows. Complete dataset contains {len(preview_df)} rows.")
 
@@ -1021,47 +1087,93 @@ Timestamp: {pd.Timestamp.now().isoformat()}
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
 
+def build_results_dataframe(results):
+    """Construct a pandas DataFrame containing per-section and summary metrics."""
+    areas_gc1 = results.get('areas_gc1') or []
+    areas_gc2 = results.get('areas_gc2') or []
+    sections_gc1 = results.get('section_points_gc1') or []
+    sections_gc2 = results.get('section_points_gc2') or []
+
+    max_len = max(
+        len(areas_gc1),
+        len(areas_gc2),
+        len(sections_gc1),
+        len(sections_gc2)
+    )
+
+    if max_len == 0:
+        max_len = 1
+
+    data = []
+    for i in range(max_len):
+        row: dict[str, Any] = {}
+        row['section_index'] = i if max_len > 1 else 0
+
+        row['gc1_area'] = float(areas_gc1[i]) if i < len(areas_gc1) else np.nan
+        row['gc2_area'] = float(areas_gc2[i]) if i < len(areas_gc2) else np.nan
+
+        if i < len(sections_gc1):
+            section = sections_gc1[i]
+            if section is not None and len(section) > 0:
+                row['gc1_num_points'] = int(len(section))
+                row['gc1_centroid_x'] = float(np.mean(section[:, 0]))
+                row['gc1_centroid_y'] = float(np.mean(section[:, 1]))
+                row['gc1_centroid_z'] = float(np.mean(section[:, 2]))
+
+        if i < len(sections_gc2):
+            section = sections_gc2[i]
+            if section is not None and len(section) > 0:
+                row['gc2_num_points'] = int(len(section))
+                row['gc2_centroid_x'] = float(np.mean(section[:, 0]))
+                row['gc2_centroid_y'] = float(np.mean(section[:, 1]))
+                row['gc2_centroid_z'] = float(np.mean(section[:, 2]))
+
+        data.append(row)
+
+    analysis_settings = results.get('analysis_settings') or {}
+
+    summary_fields = {
+        'original_filename': results.get('original_filename'),
+        'num_vertices': results.get('num_vertices'),
+        'num_faces': results.get('num_faces'),
+        'mesh_volume': results.get('mesh_volume'),
+        'mesh_area': results.get('mesh_area'),
+        'gc1_volume': results.get('gc1_volume'),
+        'gc2_volume': results.get('gc2_volume'),
+        'num_parts_total': results.get('num_parts_total'),
+        'extra_parts_removed': results.get('extra_parts_removed'),
+        'gc_order_swapped_from_file': results.get('gc_order_swapped_from_file'),
+        'num_wall_vertices': results.get('num_wall_vertices'),
+        'wall_distance': results.get('wall_distance'),
+        'avg_area': results.get('avg_area'),
+        'radius': results.get('radius'),
+        'analysis_num_sections': analysis_settings.get('num_sections'),
+        'analysis_mesh_opacity': analysis_settings.get('mesh_opacity'),
+        'analysis_circle_radius_factor': analysis_settings.get('circle_radius_factor'),
+        'analysis_wall_threshold': analysis_settings.get('wall_threshold')
+    }
+
+    numeric_keys = {
+        'num_vertices', 'num_faces', 'mesh_volume', 'mesh_area',
+        'gc1_volume', 'gc2_volume', 'num_parts_total', 'num_wall_vertices',
+        'wall_distance', 'avg_area', 'radius', 'analysis_num_sections',
+        'analysis_mesh_opacity', 'analysis_circle_radius_factor', 'analysis_wall_threshold'
+    }
+
+    for key in numeric_keys:
+        if summary_fields.get(key) is None:
+            summary_fields[key] = np.nan
+
+    for row in data:
+        for key, value in summary_fields.items():
+            row[key] = value
+
+    return pd.DataFrame(data)
+
+
 def create_csv_data(results):
     """Create CSV data from analysis results"""
-    data = []
-    
-    # Cross-section data
-    if 'areas_gc1' in results and 'areas_gc2' in results:
-        max_len = max(len(results['areas_gc1']), len(results['areas_gc2']))
-        
-        for i in range(max_len):
-            row = {'section_index': i}
-            
-            if i < len(results['areas_gc1']):
-                row['gc1_area'] = results['areas_gc1'][i]
-            else:
-                row['gc1_area'] = None
-                
-            if i < len(results['areas_gc2']):
-                row['gc2_area'] = results['areas_gc2'][i]
-            else:
-                row['gc2_area'] = None
-            
-            # Add coordinates if available
-            if 'section_points_gc1' in results and i < len(results['section_points_gc1']):
-                section = results['section_points_gc1'][i]
-                if section is not None:
-                    row['gc1_num_points'] = len(section)
-                    row['gc1_centroid_x'] = np.mean(section[:, 0])
-                    row['gc1_centroid_y'] = np.mean(section[:, 1])
-                    row['gc1_centroid_z'] = np.mean(section[:, 2])
-            
-            if 'section_points_gc2' in results and i < len(results['section_points_gc2']):
-                section = results['section_points_gc2'][i]
-                if section is not None:
-                    row['gc2_num_points'] = len(section)
-                    row['gc2_centroid_x'] = np.mean(section[:, 0])
-                    row['gc2_centroid_y'] = np.mean(section[:, 1])
-                    row['gc2_centroid_z'] = np.mean(section[:, 2])
-            
-            data.append(row)
-    
-    df = pd.DataFrame(data)
+    df = build_results_dataframe(results)
     return df.to_csv(index=False)
 
 if __name__ == "__main__":
