@@ -189,7 +189,12 @@ def main():
                 show_mesh_analysis(selected_mesh, selected_results, mesh_opacity)
 
             with tab3:
-                show_download_results(selected_results, selected_file, batch_download=batch_download)
+                show_download_results(
+                    selected_results,
+                    selected_file,
+                    batch_download=batch_download,
+                    all_results=analysis_results_list
+                )
 
             if batch_download and batch_download["file_count"] > 1:
                 st.caption(
@@ -885,7 +890,7 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
     
     return fig
 
-def show_download_results(results, original_filename="stomata", batch_download=None):
+def show_download_results(results, original_filename="stomata", batch_download=None, all_results=None):
     """Display download options for analysis results"""
     st.header("📥 Download Analysis Results")
 
@@ -916,17 +921,29 @@ def show_download_results(results, original_filename="stomata", batch_download=N
     with col2:
         st.subheader("🖼️ Cross-Section Images")
         if st.button("Generate Cross-Section PNGs"):
-            if 'section_points_gc1' in results and 'section_points_gc2' in results:
-                with st.spinner("Generating PNG images..."):
+            with st.spinner("Generating PNG images..."):
+                zip_data = None
+                download_name = "cross_sections.zip"
+
+                if all_results and len(all_results) > 1:
+                    zip_data = create_batch_cross_section_zip(all_results)
+                    download_name = "all_cross_sections.zip"
+                else:
                     zip_data = create_cross_section_pngs_package(results, original_filename)
+                    if original_filename:
+                        safe_base = _safe_base_name(original_filename)
+                        if safe_base:
+                            download_name = f"{safe_base}_cross_sections.zip"
+
+                if zip_data:
                     st.download_button(
                         label="Click to Download ZIP",
                         data=zip_data,
-                        file_name=f"{base_name}_cross_sections.zip",
+                        file_name=download_name,
                         mime="application/zip"
                     )
-            else:
-                st.warning("No cross-section data available for PNG generation.")
+                else:
+                    st.warning("No cross-section data available for PNG generation.")
 
     # Data preview
     st.subheader("Data Preview")
@@ -1007,6 +1024,71 @@ def create_cross_section_png(section_points, section_name, dpi=150, size_inches=
     img_buffer.seek(0)
     return img_buffer.getvalue()
 
+def _safe_base_name(original_filename: str | None, fallback: str = "stomata") -> str:
+    base = os.path.splitext(original_filename or "")[0]
+    if not base:
+        base = fallback
+    safe = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in base)
+    return safe or fallback
+
+
+def _determine_cross_section_prefixes(original_filename: str | None, used_bases: set[str] | None = None) -> tuple[str, str]:
+    base = _safe_base_name(original_filename)
+    if used_bases is not None:
+        unique = base
+        counter = 1
+        while unique in used_bases:
+            counter += 1
+            unique = f"{base}_{counter}"
+        used_bases.add(unique)
+        base = unique
+    folder_prefix = f"{base}_cross_sections"
+    return folder_prefix, base
+
+
+def _write_cross_sections_to_zip(zip_file: zipfile.ZipFile, results: dict[str, Any], original_filename: str | None, folder_prefix: str, name_prefix: str) -> bool:
+    wrote_png = False
+
+    if 'section_points_gc1' in results:
+        for i, section in enumerate(results['section_points_gc1']):
+            if section is not None and len(section) > 2:
+                section_name = f"GC1 - Section {i:02d}"
+                png_data = create_cross_section_png(section, section_name, title_prefix=name_prefix)
+                if png_data:
+                    zip_file.writestr(f"{folder_prefix}/{name_prefix}_GC1_section_{i:02d}.png", png_data)
+                    wrote_png = True
+
+    if 'section_points_gc2' in results:
+        for i, section in enumerate(results['section_points_gc2']):
+            if section is not None and len(section) > 2:
+                section_name = f"GC2 - Section {i:02d}"
+                png_data = create_cross_section_png(section, section_name, title_prefix=name_prefix)
+                if png_data:
+                    zip_file.writestr(f"{folder_prefix}/{name_prefix}_GC2_section_{i:02d}.png", png_data)
+                    wrote_png = True
+
+    if wrote_png:
+        readme_content = f"""Cross-Section PNG Images for {original_filename or name_prefix}
+========================================
+
+This folder contains 2D PNG images of all extracted cross-sections for {original_filename or name_prefix}.
+
+File Naming Convention:
+- {name_prefix}_GC1_section_XX.png: Cross-sections from Guard Cell 1
+- {name_prefix}_GC2_section_XX.png: Cross-sections from Guard Cell 2
+
+Where GC1/GC2 indicates the guard cell (Guard Cell 1 or Guard Cell 2) and XX is the section number (00, 01, 02, etc.).
+
+Each image shows the cross-section outline as a black line on a white background.
+Images are generated at 150 DPI and sized at 4x4 inches for high quality.
+
+Generated by Stomata Analysis Tool
+Timestamp: {pd.Timestamp.now().isoformat()}
+"""
+        zip_file.writestr(f"{folder_prefix}/README.txt", readme_content)
+
+    return wrote_png
+
 def create_cross_section_pngs_package(results, original_filename):
     """
     Create a ZIP package containing PNG images of all cross-sections.
@@ -1024,59 +1106,32 @@ def create_cross_section_pngs_package(results, original_filename):
         ZIP file data as bytes
     """
     zip_buffer = io.BytesIO()
-    
-    # Extract base name without extension for better naming
-    base_name = os.path.splitext(original_filename)[0]
+    folder_prefix, name_prefix = _determine_cross_section_prefixes(original_filename)
 
-    safe_base = base_name.replace(' ', '_') if base_name else "stomata"
-    name_prefix = safe_base
-    folder_prefix = f"{safe_base}_cross_sections"
-    
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        
-        # Process GC1 cross-sections
-        if 'section_points_gc1' in results:
-            for i, section in enumerate(results['section_points_gc1']):
-                if section is not None and len(section) > 2:
-                    section_name = f"GC1 - Section {i:02d}"
-                    png_data = create_cross_section_png(section, section_name, title_prefix=name_prefix)
-                    if png_data:
-                        filename = f"{folder_prefix}/{name_prefix}_GC1_section_{i:02d}.png"
-                        zip_file.writestr(filename, png_data)
-        
-        # Process GC2 cross-sections
-        if 'section_points_gc2' in results:
-            for i, section in enumerate(results['section_points_gc2']):
-                if section is not None and len(section) > 2:
-                    section_name = f"GC2 - Section {i:02d}"
-                    png_data = create_cross_section_png(section, section_name, title_prefix=name_prefix)
-                    if png_data:
-                        filename = f"{folder_prefix}/{name_prefix}_GC2_section_{i:02d}.png"
-                        zip_file.writestr(filename, png_data)
-        
-        # Add a README file
-        readme_content = f"""Cross-Section PNG Images for {original_filename}
-========================================
+        wrote_any = _write_cross_sections_to_zip(zip_file, results, original_filename, folder_prefix, name_prefix)
 
-This package contains 2D PNG images of all extracted cross-sections.
+    if not wrote_any:
+        return None
 
-File Naming Convention:
-- {name_prefix}_GC1_section_XX.png: Cross-sections from Guard Cell 1
-- {name_prefix}_GC2_section_XX.png: Cross-sections from Guard Cell 2
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
 
-Where:
-- Stomata ID and timepoint are extracted from the original filename
-- GC1/GC2 indicates the guard cell (Guard Cell 1 or Guard Cell 2)  
-- XX is the section number (00, 01, 02, etc.)
 
-Each image shows the cross-section outline as a black line on a white background.
-Images are generated at 150 DPI and sized at 4x4 inches for high quality.
+def create_batch_cross_section_zip(results_list: list[tuple[str, dict[str, Any]]]) -> bytes | None:
+    zip_buffer = io.BytesIO()
+    used_bases: set[str] = set()
+    wrote_any = False
 
-Generated by Stomata Analysis Tool
-Timestamp: {pd.Timestamp.now().isoformat()}
-"""
-        zip_file.writestr(f"{folder_prefix}/README.txt", readme_content)
-    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for original_filename, results in results_list:
+            folder_prefix, name_prefix = _determine_cross_section_prefixes(original_filename, used_bases)
+            if _write_cross_sections_to_zip(zip_file, results, original_filename, folder_prefix, name_prefix):
+                wrote_any = True
+
+    if not wrote_any:
+        return None
+
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
 
