@@ -17,17 +17,12 @@ try:
     import numpy as np
     import plotly.graph_objects as go
     import plotly.io as pio
-    from plotly.subplots import make_subplots
     import matplotlib.pyplot as plt
     from sklearn.decomposition import PCA
 
     # Import the stomata analysis functions
     import sys
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    
-    import mesh_io
-    import wall_detection
-    import cross_sections
     
     from mesh_io import load_mesh
     from wall_detection import get_wall_vertices
