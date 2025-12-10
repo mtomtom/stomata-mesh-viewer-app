@@ -857,16 +857,8 @@ def create_detailed_mesh_plot(results, opacity=0.65, mesh_color="#0072B2", show_
             x0 = max(0.02, x_center - (paper_width / 2.0))
             x1 = min(0.98, x0 + paper_width)
 
-            # place the label centered over the bar (user requested middle placement)
-            # apply a small leftward nudge so the text appears visually centered
-            # (some fonts can make exact centre look slightly off)
-            nudge_left = 0.015
-            # make label placement independent of the bar width so the text
-            # remains visually centered even when the bar scales.
-            # Use paper-centre minus the same small leftward nudge.
-            desired_x = 0.5 - nudge_left
-            # clamp to avoid clipping at figure edges
-            label_x = max(0.02, min(0.98, desired_x))
+            # place the label centered over the bar using the bar midpoint
+            label_x = (x0 + x1) / 2.0
             # place label slightly below the bar so it doesn't overlap (use top anchor)
             # moved down a touch compared to previous value
             label_y = 0.0025
