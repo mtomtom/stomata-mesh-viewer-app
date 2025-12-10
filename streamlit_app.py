@@ -373,6 +373,8 @@ def analyze_mesh_detailed(mesh, num_sections=20):
         results['spline'] = spline
         results['spline_points_gc1'] = spline_points_gc1
         results['spline_points_gc2'] = spline_points_gc2
+        results['gc1_arc_length'] = _curve_length(spline_points_gc1)
+        results['gc2_arc_length'] = _curve_length(spline_points_gc2)
         
         # Regular cross-sections
         (section_points_gc1, section_traces_gc1, section_bary_data_gc1) = get_regularly_spaced_cross_sections(
@@ -435,6 +437,20 @@ def show_overview(mesh, results):
     with col3:
         st.metric("Wall Vertices", results['num_wall_vertices'])
     
+    arc_col1, arc_col2 = st.columns(2)
+    gc1_arc = results.get('gc1_arc_length')
+    gc2_arc = results.get('gc2_arc_length')
+    with arc_col1:
+        arc_val = "—"
+        if gc1_arc is not None and np.isfinite(gc1_arc):
+            arc_val = f"{gc1_arc:.4f}"
+        st.metric("GC1 Arc Length", arc_val)
+    with arc_col2:
+        arc_val = "—"
+        if gc2_arc is not None and np.isfinite(gc2_arc):
+            arc_val = f"{gc2_arc:.4f}"
+        st.metric("GC2 Arc Length", arc_val)
+
         # Show whether we swapped GC order compared to file-order when loading
         swapped_flag = results.get('gc_order_swapped_from_file', None)
         if swapped_flag is not None:
@@ -1050,6 +1066,15 @@ def create_cross_section_png(section_points, section_name, dpi=150, size_inches=
     img_buffer.seek(0)
     return img_buffer.getvalue()
 
+
+def _curve_length(points: np.ndarray | None) -> float:
+    if points is None or len(points) < 2:
+        return float('nan')
+    diffs = np.diff(points, axis=0)
+    segment_lengths = np.linalg.norm(diffs, axis=1)
+    return float(segment_lengths.sum())
+
+
 def _safe_base_name(original_filename: str | None, fallback: str = "stomata") -> str:
     base = os.path.splitext(original_filename or "")[0]
     if not base:
@@ -1221,6 +1246,8 @@ def build_results_dataframe(results):
         'wall_distance': results.get('wall_distance'),
         'avg_area': results.get('avg_area'),
         'radius': results.get('radius'),
+        'gc1_arc_length': results.get('gc1_arc_length'),
+        'gc2_arc_length': results.get('gc2_arc_length'),
         'analysis_num_sections': analysis_settings.get('num_sections'),
         'analysis_mesh_opacity': analysis_settings.get('mesh_opacity'),
         'analysis_circle_radius_factor': analysis_settings.get('circle_radius_factor'),
@@ -1230,8 +1257,8 @@ def build_results_dataframe(results):
     numeric_keys = {
         'num_vertices', 'num_faces', 'mesh_volume', 'mesh_area',
         'gc1_volume', 'gc2_volume', 'num_parts_total', 'num_wall_vertices',
-        'wall_distance', 'avg_area', 'radius', 'analysis_num_sections',
-        'analysis_mesh_opacity', 'analysis_circle_radius_factor', 'analysis_wall_threshold'
+        'wall_distance', 'avg_area', 'radius', 'gc1_arc_length', 'gc2_arc_length',
+        'analysis_num_sections', 'analysis_mesh_opacity', 'analysis_circle_radius_factor', 'analysis_wall_threshold'
     }
 
     for key in numeric_keys:
