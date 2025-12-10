@@ -5,7 +5,7 @@
 # How is the centreline determined? Does this go through the centrepoint of the cross-sections? If so, I think this could be a simpler solution for us to measure/approximate arc length than the current skeletons approach? Would there be an easy way to extract the length of this line for each cell (i.e between the top/bottom circles as in the attached image)?
 
 # Ah fantastic - I'm not sure if it would make a large difference, but assume it would be more accurate. All sounds great and hopefully it's not too much extra work for you to implement. Another quick q: would it be possible to set up the app to batch process/analyse meshes? With the Arabidopsis we often have between 5-10 stomata per mesh and it would increase our throughput if we could do something like this, but understand this could be too complicated. It's still so much faster than manual analysis!
-from typing import Any
+from typing import Any, cast
 
 try:
     import streamlit as st
@@ -43,7 +43,7 @@ except ImportError as e:
     # Create a dummy streamlit object for graceful degradation
     class DummySt:
         def error(self, msg): print(f"Error: {msg}")
-    st = DummySt()
+    st = cast(Any, DummySt())
 
 st.set_page_config(
     page_title="Stomata Analysis Tool",
@@ -895,55 +895,81 @@ def show_download_results(results, original_filename="stomata", batch_download=N
     st.header("📥 Download Analysis Results")
 
     base_name = os.path.splitext(original_filename)[0] if original_filename else "stomata"
+    multi_file = bool(all_results and len(all_results) > 1)
+
+    scope_options = ["Current mesh"] + (["All meshes"] if multi_file else [])
+    scope_choice = st.radio(
+        "Download scope",
+        scope_options,
+        index=0,
+        horizontal=True,
+        help="Apply downloads to the selected mesh or all processed meshes.",
+        key="download_scope_selector"
+    )
+    download_all = scope_choice == "All meshes"
 
     # Download options in columns
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("📊 CSV Data")
-        csv_data = create_csv_data(results)
-        st.download_button(
-            label="Download CSV Data",
-            data=csv_data,
-            file_name=f"{base_name}_analysis.csv",
-            mime="text/csv"
-        )
-
-        if batch_download and batch_download.get("file_count", 0) > 1:
+        if download_all:
+            if batch_download and batch_download.get("file_count", 0) > 1:
+                st.download_button(
+                    label=f"Download All Meshes CSV ({batch_download['file_count']} files)",
+                    data=batch_download['csv_bytes'],
+                    file_name=batch_download.get("filename", "stomata_analysis_batch.csv"),
+                    mime="text/csv",
+                    help=f"Includes {batch_download['row_count']} rows across {batch_download['file_count']} files."
+                )
+            else:
+                st.info("Aggregated CSV is only available when multiple meshes are processed.")
+        else:
+            csv_data = create_csv_data(results)
             st.download_button(
-                label=f"Download Aggregated CSV ({batch_download['file_count']} files)",
-                data=batch_download['csv_bytes'],
-                file_name=batch_download.get("filename", "stomata_analysis_batch.csv"),
-                mime="text/csv",
-                help=f"Includes {batch_download['row_count']} rows across {batch_download['file_count']} files."
+                label="Download Current Mesh CSV",
+                data=csv_data,
+                file_name=f"{base_name}_analysis.csv",
+                mime="text/csv"
             )
+            if multi_file and batch_download:
+                st.caption("Switch the download scope to 'All meshes' to grab the aggregated CSV.")
 
     with col2:
         st.subheader("🖼️ Cross-Section Images")
-        if st.button("Generate Cross-Section PNGs"):
+        button_label = "Generate Cross-Section PNGs (All meshes)" if download_all else "Generate Cross-Section PNGs (Current mesh)"
+        if st.button(button_label):
             with st.spinner("Generating PNG images..."):
-                zip_data = None
-                download_name = "cross_sections.zip"
-
-                if all_results and len(all_results) > 1:
-                    zip_data = create_batch_cross_section_zip(all_results)
-                    download_name = "all_cross_sections.zip"
+                if download_all:
+                    if multi_file:
+                        zip_data = create_batch_cross_section_zip(all_results or [])
+                        if zip_data:
+                            st.download_button(
+                                label="Download All Mesh Cross-Sections ZIP",
+                                data=zip_data,
+                                file_name="all_cross_sections.zip",
+                                mime="application/zip"
+                            )
+                        else:
+                            st.warning("No cross-section data available across the uploaded meshes.")
+                    else:
+                        st.info("Only one mesh available; switch scope to 'Current mesh' to export cross-sections.")
                 else:
                     zip_data = create_cross_section_pngs_package(results, original_filename)
-                    if original_filename:
-                        safe_base = _safe_base_name(original_filename)
-                        if safe_base:
-                            download_name = f"{safe_base}_cross_sections.zip"
-
-                if zip_data:
-                    st.download_button(
-                        label="Click to Download ZIP",
-                        data=zip_data,
-                        file_name=download_name,
-                        mime="application/zip"
-                    )
-                else:
-                    st.warning("No cross-section data available for PNG generation.")
+                    if zip_data:
+                        download_name = "cross_sections.zip"
+                        if original_filename:
+                            safe_base = _safe_base_name(original_filename)
+                            if safe_base:
+                                download_name = f"{safe_base}_cross_sections.zip"
+                        st.download_button(
+                            label="Download Current Mesh Cross-Sections ZIP",
+                            data=zip_data,
+                            file_name=download_name,
+                            mime="application/zip"
+                        )
+                    else:
+                        st.warning("No cross-section data available for the current mesh.")
 
     # Data preview
     st.subheader("Data Preview")
